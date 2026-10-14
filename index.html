@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notkort</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one centered column with the staff on top, the answer under it, a full-width piano below, a score strip at the bottom. */
+:root {
+  --bg: #e9eef3;
+  --paper: #fbfcfd;
+  --ink: #1d2733;
+  --muted: #5d6b7a;
+  --line: #c7d1db;
+  --accent: #2f5d8a;
+  --accent-ink: #ffffff;
+  --good: #23784a;
+  --bad: #b23a3a;
+  --good-bg: #dcefe3;
+  --bad-bg: #f5dede;
+  --white-key: #fdfdfd;
+  --white-key-edge: #9aa6b3;
+  --black-key: #1b2129;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121820; --paper: #1b232d; --ink: #e4eaf0; --muted: #93a1b0; --line: #34414f;
+    --accent: #7fb0e0; --accent-ink: #0d1520; --good: #6fcf97; --bad: #f08a8a;
+    --good-bg: #1d3a2a; --bad-bg: #3d2224;
+    --white-key: #e8ecf0; --white-key-edge: #4a5866; --black-key: #0b0f14; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121820; --paper: #1b232d; --ink: #e4eaf0; --muted: #93a1b0; --line: #34414f;
+  --accent: #7fb0e0; --accent-ink: #0d1520; --good: #6fcf97; --bad: #f08a8a;
+  --good-bg: #1d3a2a; --bad-bg: #3d2224;
+  --white-key: #e8ecf0; --white-key-edge: #4a5866; --black-key: #0b0f14; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.col { width: 100%; max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.wide { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 2rem; margin: 0; letter-spacing: -0.01em; }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.staff { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+svg .l { stroke: var(--ink); }
+svg .f { fill: var(--ink); }
+svg .h { fill: var(--paper); stroke: var(--ink); }
+.staff svg { display: block; width: 100%; height: auto; max-height: 34vh; }
+
+.result { min-height: 5.4em; display: grid; justify-items: center; align-content: center; gap: 2px; text-align: center; }
+.result .nm { font-family: var(--display); font-weight: 800; font-size: 1.7rem; line-height: 1.1; }
+.result.ok .nm { color: var(--good); font-family: var(--display); font-weight: 800; }
+.result.no { color: var(--bad); font-weight: 700; }
+.result .prompt { color: var(--muted); }
+.answer { display: grid; grid-template-columns: auto auto; gap: 4px 16px; align-items: baseline; margin: 0; text-align: left; }
+.answer dt { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.answer dd { margin: 0; font-weight: 700; font-size: 1.1rem; }
+.answer dd.nm { font-size: 1.7rem; }
+.go {
+  justify-self: center; display: inline-flex; align-items: center; gap: 10px; min-height: 48px;
+  font-family: var(--display); font-weight: 700; font-size: 1rem; letter-spacing: 0.01em;
+  border-radius: 999px; padding: 10px 22px; cursor: pointer;
+  transition: background-color .2s, color .2s, border-color .2s, transform .1s;
+}
+.go:active { transform: scale(0.97); }
+.go .arrow { transition: transform .2s; }
+.go:hover .arrow { transform: translateX(3px); }
+.go.skip { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); }
+.go.skip:hover { color: var(--ink); border-color: var(--muted); }
+.go.next { background: var(--good); color: var(--bg); border: 1.5px solid var(--good); padding-inline: 28px; box-shadow: 0 6px 18px -8px var(--good); }
+.go kbd { font: 600 0.7rem var(--body); padding: 2px 7px; border-radius: 6px; border: 1px solid currentColor; opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) { .go, .go .arrow { transition: none; } }
+
+.kb-wrap { overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+.kb { display: flex; width: max-content; min-width: 100%; }
+.oct { display: grid; grid-template-rows: auto 1fr; flex: 1 0 auto; }
+.oct-name { font-family: var(--display); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: center; border-bottom: 2px solid var(--line); margin: 0 3px 6px; padding-bottom: 3px; white-space: nowrap; }
+.keys { position: relative; display: flex; height: 150px; }
+.wk { flex: 1 0 28px; min-width: 28px; border: 1px solid var(--white-key-edge); border-radius: 0 0 6px 6px; background: var(--white-key); cursor: pointer; display: flex; align-items: end; justify-content: center; padding: 0 0 7px; font: 0.68rem var(--body); color: #5d6b7a; }
+.bk { position: absolute; top: 0; height: 62%; background: var(--black-key); border-radius: 0 0 4px 4px; z-index: 2; cursor: pointer; border: 0; transform: translateX(-50%); }
+.wk + .wk { margin-left: -1px; }
+.wk:focus-visible, .bk:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.wk:active { filter: brightness(0.92); }
+.wk.right { background: var(--good-bg); border-color: var(--good); color: var(--ink); }
+.wk.wrong { background: var(--bad-bg); border-color: var(--bad); }
+.bk.wrong { background: var(--bad); }
+
+
+</style>
+
+<main>
+  <section id="pianoView" class="wide">
+    <div class="col">
+      <div class="staff"><svg id="staff" viewBox="0 14 300 122" role="img" aria-label="Нота на нотном стане"></svg></div>
+      <div class="result" id="result" aria-live="polite"></div>
+      <button type="button" class="go skip" id="go"></button>
+    </div>
+    <div class="kb-wrap" id="kbWrap"><div class="kb" id="kb"></div></div>
+  </section>
+
+</main>
+
+<script>
+const SOLFEGE = ["До", "Ре", "Ми", "Фа", "Соль", "Ля", "Си"];
+const SEMI = [0, 2, 4, 5, 7, 9, 11];
+const BLACK_AFTER = [0, 1, 3, 4, 5];
+const OCTAVES = { 2: "большая октава", 3: "малая октава", 4: "первая октава", 5: "вторая октава", 6: "третья октава" };
+const DURATIONS = {
+  w: { ru: "целая нота", frac: "1/1" },
+  h: { ru: "половинная нота", frac: "1/2" },
+  q: { ru: "четвертная нота", frac: "1/4" },
+  e: { ru: "восьмая нота", frac: "1/8" },
+  s: { ru: "шестнадцатая нота", frac: "1/16" },
+};
+const CLEFS = {
+  G: { ref: 4 * 7 + 2, min: 3 * 7 + 4, max: 6 * 7 + 3, line: 1, path: "M376 415C374 427 376 428 382 434C398 449 419 470 438 491C522 583 572 702 572 815C572 902 548 988 507 1048C492 1070 466 1098 455 1098C441 1098 410 1072 390 1050C316 968 292 843 292 739C292 681 299 616 306 575C308 563 309 561 297 551C233 498 164 437 112 373C43 287 0 194 0 87C0 -87 119 -252 364 -252C387 -252 413 -250 433 -246C444 -244 446 -243 448 -255C460 -322 475 -409 475 -456C475 -604 375 -622 316 -622C262 -622 236 -606 236 -593C236 -586 245 -583 268 -576C299 -567 335 -540 335 -482C335 -427 300 -380 239 -380C172 -380 132 -433 132 -495C132 -560 171 -658 322 -658C389 -658 519 -628 519 -458C519 -401 501 -306 490 -244C488 -232 489 -233 503 -227C604 -187 671 -102 671 11C671 139 577 252 430 252C404 252 404 252 401 270ZM470 943C503 943 530 916 530 861C530 792 497 728 419 650C403 634 379 611 356 591C349 585 345 586 343 599C339 625 337 659 337 691C337 847 409 943 470 943ZM361 262C364 243 364 244 346 238C258 208 201 129 201 44C201 -46 248 -110 316 -133C324 -136 336 -139 343 -139C351 -139 355 -134 355 -128C355 -121 347 -118 340 -115C298 -97 268 -54 268 -8C268 49 307 92 368 109C384 113 386 112 388 101L438 -197C440 -208 439 -208 424 -211C408 -214 388 -216 368 -216C193 -216 80 -119 80 20C80 79 90 158 173 252C233 319 279 356 326 394C336 402 338 401 340 390ZM430 103C428 115 429 118 441 117C522 110 589 42 589 -46C589 -109 551 -160 495 -188C483 -194 481 -194 479 -182Z" },
+  F: { ref: 2 * 7 + 4, min: 2 * 7 + 0, max: 4 * 7 + 3, line: 3, path: "M252 262C78 262 0 135 0 39C0 -41 42 -110 123 -110C186 -110 229 -66 229 -4C229 60 182 100 133 100C106 100 96 93 83 93C70 93 67 101 67 111C67 151 127 224 229 224C335 224 381 120 381 -37C381 -140 359 -260 297 -356C237 -449 134 -534 10 -605C1 -610 -5 -615 -5 -623C-5 -629 -1 -635 8 -635C13 -635 19 -633 25 -630C158 -565 286 -489 392 -375C479 -281 531 -159 531 -28C531 146 425 262 252 262ZM629 180C598 180 574 156 574 125C574 94 598 70 629 70C660 70 684 94 684 125C684 156 660 180 629 180ZM630 -71C599 -71 576 -94 576 -125C576 -156 599 -179 630 -179C661 -179 684 -156 684 -125C684 -94 661 -71 630 -71Z" },
+};
+const POOL = [];
+for (const clef of Object.keys(CLEFS))
+  for (let d = CLEFS[clef].min; d <= CLEFS[clef].max; d++)
+    for (const dur of Object.keys(DURATIONS)) POOL.push({ clef, d, dur });
+
+const $ = (id) => document.getElementById(id);
+const midiOf = (d) => 12 * (Math.floor(d / 7) + 1) + SEMI[d % 7];
+const pickRandom = (a) => a[Math.floor(Math.random() * a.length)];
+
+let note = null, done = false, missed = false, audio = null;
+
+function describe(n) {
+  return { name: SOLFEGE[n.d % 7], octave: OCTAVES[Math.floor(n.d / 7)], dur: DURATIONS[n.dur] };
+}
+
+function noteSvg(n, width) {
+  const S = 10, bottom = 100, nx = width * 0.6;
+  const clef = CLEFS[n.clef];
+  const step = n.d - clef.ref;
+  const yOf = (st) => bottom - st * (S / 2);
+  const y = yOf(step);
+  let out = "";
+  for (let i = 0; i < 5; i++) out += `<line class="l" x1="4" x2="${width - 4}" y1="${bottom - i * S}" y2="${bottom - i * S}" stroke-width="1"/>`;
+  out += `<path class="f" transform="translate(8 ${bottom - clef.line * S}) scale(${S / 250} ${-S / 250})" d="${clef.path}"/>`;
+  for (let st = -2; st >= step; st -= 2) out += `<line class="l" x1="${nx - 11}" x2="${nx + 11}" y1="${yOf(st)}" y2="${yOf(st)}" stroke-width="1.2"/>`;
+  for (let st = 10; st <= step; st += 2) out += `<line class="l" x1="${nx - 11}" x2="${nx + 11}" y1="${yOf(st)}" y2="${yOf(st)}" stroke-width="1.2"/>`;
+  if (n.dur === "w") {
+    out += `<ellipse class="h" cx="${nx}" cy="${y}" rx="7" ry="4.6" stroke-width="2.4"/>`;
+  } else {
+    const open = n.dur === "h";
+    out += `<ellipse class="${open ? "h" : "f"}" cx="${nx}" cy="${y}" rx="${open ? 5.9 : 6.4}" ry="${open ? 4 : 4.5}" transform="rotate(-22 ${nx} ${y})" stroke-width="${open ? 1.9 : 0}"/>`;
+    const up = step < 4;
+    const len = n.dur === "s" ? 38 : 35;
+    const sx = up ? nx + 5.8 : nx - 5.8;
+    const end = up ? y - len : y + len;
+    out += `<line class="l" x1="${sx}" x2="${sx}" y1="${up ? y - 1 : y + 1}" y2="${end}" stroke-width="1.4"/>`;
+    const flags = n.dur === "e" ? 1 : n.dur === "s" ? 2 : 0;
+    const k = up ? 1 : -1;
+    for (let f = 0; f < flags; f++) {
+      const t = end + k * f * 8;
+      out += `<path class="f" d="M${sx} ${t} C${sx + 1} ${t + k * 8} ${sx + 11} ${t + k * 11} ${sx + 8} ${t + k * 23} C${sx + 8.5} ${t + k * 14} ${sx + 4} ${t + k * 12} ${sx} ${t + k * 9} Z"/>`;
+    }
+  }
+  return out;
+}
+
+function playTone(midi) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(t);
+    osc.stop(t + 1.25);
+  } catch (e) {}
+}
+
+function buildKeyboard() {
+  const kb = $("kb");
+  kb.innerHTML = "";
+  for (let o = 2; o <= 6; o++) {
+    const oct = document.createElement("div");
+    oct.className = "oct";
+    oct.innerHTML = `<div class="oct-name">${OCTAVES[o]}</div><div class="keys"></div>`;
+    const keys = oct.querySelector(".keys");
+    for (let i = 0; i < 7; i++) {
+      const d = o * 7 + i;
+      const w = document.createElement("button");
+      w.type = "button";
+      w.className = "wk";
+      w.dataset.d = d;
+      w.setAttribute("aria-label", `${SOLFEGE[i]}, ${OCTAVES[o]}`);
+      if (i === 0) w.textContent = SOLFEGE[0];
+      w.addEventListener("click", () => pressWhite(d, w));
+      keys.appendChild(w);
+    }
+    for (const i of BLACK_AFTER) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "bk";
+      b.style.left = `${((i + 1) / 7) * 100}%`;
+      b.style.width = `${(1 / 7) * 60}%`;
+      b.setAttribute("aria-label", "Чёрная клавиша");
+      b.addEventListener("click", () => pressBlack(midiOf(o * 7 + i) + 1, b));
+      keys.appendChild(b);
+    }
+    kb.appendChild(oct);
+  }
+}
+
+function centerKeyboard() {
+  const wrap = $("kbWrap");
+  const c4 = document.querySelector('.wk[data-d="28"]');
+  if (c4 && wrap.scrollWidth > wrap.clientWidth) wrap.scrollLeft = c4.offsetLeft - wrap.clientWidth / 2 + c4.offsetWidth * 3.5;
+}
+
+function nextNote() {
+  let n;
+  do n = pickRandom(POOL); while (note && n.clef === note.clef && n.d === note.d);
+  note = n;
+  done = false;
+  missed = false;
+  $("staff").innerHTML = noteSvg(n, 300);
+  $("result").className = "result";
+  $("result").innerHTML = `<span class="prompt">Назови ноту, длительность и октаву, потом нажми клавишу.</span>`;
+  $("go").className = "go skip";
+  $("go").innerHTML = `Пропустить <span class="arrow" aria-hidden="true">→</span>`;
+  document.querySelectorAll(".wk.right").forEach((k) => k.classList.remove("right"));
+}
+
+function flash(el) {
+  el.classList.add("wrong");
+  setTimeout(() => el.classList.remove("wrong"), 600);
+}
+
+function pressWhite(d, el) {
+  playTone(midiOf(d));
+  if (!note || done) return;
+  if (d === note.d) {
+    done = true;
+    el.classList.add("right");
+    const a = describe(note);
+    $("result").className = "result ok";
+    $("result").innerHTML = `<dl class="answer"><dt>Нота</dt><dd class="nm">${a.name}</dd><dt>Длительность</dt><dd>${a.dur.ru} ${a.dur.frac}</dd><dt>Октава</dt><dd>${a.octave}</dd></dl>`;
+    $("go").className = "go next";
+    $("go").innerHTML = `Дальше <span class="arrow" aria-hidden="true">→</span><kbd>Enter</kbd>`;
+  } else {
+    missed = true;
+    flash(el);
+    const w = describe({ d, dur: note.dur });
+    $("result").className = "result no";
+    $("result").textContent = `Нет, это ${w.name} (${w.octave}). Попробуй ещё.`;
+  }
+}
+
+function pressBlack(midi, el) {
+  playTone(midi);
+  if (!note || done) return;
+  missed = true;
+  flash(el);
+  $("result").className = "result no";
+  $("result").textContent = "Нет, нужна белая клавиша. Попробуй ещё.";
+}
+
+$("go").addEventListener("click", nextNote);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && done) { e.preventDefault(); nextNote(); }
+});
+
+buildKeyboard();
+nextNote();
+centerKeyboard();
+</script>
+
+</html>
